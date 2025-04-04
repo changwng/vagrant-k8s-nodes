@@ -1,78 +1,104 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
+NodeCnt = 1
 
-# All Vagrant configuration is done below. The "2" in Vagrant.configure
-# configures the configuration version (we support older styles for
-# backwards compatibility). Please don't change it unless you know what
-# you're doing.
 Vagrant.configure("2") do |config|
-  # The most common configuration options are documented and commented below.
-  # For a complete reference, please see the online documentation at
-  # https://docs.vagrantup.com.
 
-  # Every Vagrant development environment requires a box. You can search for
-  # boxes at https://vagrantcloud.com/search.
   config.vm.box = "bento/ubuntu-22.04"
-  config.vm.box_version = "202502.21.0"
+  config.vm.synced_folder "./", "/vagrant", disabled: true
+  config.vm.provision :shell, privileged: true, inline: $install_common_tools
 
-  # Disable automatic box update checking. If you disable this, then
-  # boxes will only be checked for updates when the user runs
-  # `vagrant box outdated`. This is not recommended.
-  # config.vm.box_check_update = false
+  config.vm.define "k8s-master" do |master|
+    master.vm.hostname = "k8s-master"
+    master.vm.network "private_network", ip: "192.168.56.30"
+    master.vm.provider :vmware_fusion do |vf|
+      vf.memory = 4096
+      vf.cpus = 4
+    end
+    master.vm.provision :shell, privileged: true, inline: $provision_master_node
+  end
 
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  # NOTE: This will enable public access to the opened port
-  # config.vm.network "forwarded_port", guest: 80, host: 8080
-
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine and only allow access
-  # via 127.0.0.1 to disable public access
-  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
-
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  # config.vm.network "private_network", ip: "192.168.33.10"
-
-  # Create a public network, which generally matched to bridged network.
-  # Bridged networks make the machine appear as another physical device on
-  # your network.
-  # config.vm.network "public_network"
-
-  # Share an additional folder to the guest VM. The first argument is
-  # the path on the host to the actual folder. The second argument is
-  # the path on the guest to mount the folder. And the optional third
-  # argument is a set of non-required options.
-  # config.vm.synced_folder "../data", "/vagrant_data"
-
-  # Disable the default share of the current code directory. Doing this
-  # provides improved isolation between the vagrant box and your host
-  # by making sure your Vagrantfile isn't accessible to the vagrant box.
-  # If you use this you may want to enable additional shared subfolders as
-  # shown above.
-  # config.vm.synced_folder ".", "/vagrant", disabled: true
-
-  # Provider-specific configuration so you can fine-tune various
-  # backing providers for Vagrant. These expose provider-specific options.
-  # Example for VirtualBox:
-  #
-  # config.vm.provider "virtualbox" do |vb|
-  #   # Display the VirtualBox GUI when booting the machine
-  #   vb.gui = true
-  #
-  #   # Customize the amount of memory on the VM:
-  #   vb.memory = "1024"
-  # end
-  #
-  # View the documentation for the provider you are using for more
-  # information on available options.
-
-  # Enable provisioning with a shell script. Additional provisioners such as
-  # Ansible, Chef, Docker, Puppet and Salt are also available. Please see the
-  # documentation for more information about their specific syntax and use.
-  # config.vm.provision "shell", inline: <<-SHELL
-  #   apt-get update
-  #   apt-get install -y apache2
-  # SHELL
+  (1..NodeCnt).each do |i|
+    config.vm.define "k8s-node#{i}" do |node|
+      node.vm.hostname = "k8s-node#{i}"
+      node.vm.network "private_network", ip: "192.168.56.#{i + 30}"
+      node.vm.provider :vmware_fusion do |vf|
+        vf.memory = 2048
+        vf.cpus = 2
+      end
+    end
+  end
 end
+
+$install_common_tools = <<-SHELL
+
+echo '********** 1) 타임존 셋팅 **********'
+timedatectl set-timezone Asia/Seoul
+
+echo '********** 2) Hosts 수정 **********'
+cat << EOF >> /etc/hosts
+192.168.56.30 k8s-master
+192.168.56.31 k8s-node1
+EOF
+
+echo '********** 3) 방화벽 해제 및 Swap 비활성화 및 필수 커널 모듈 로드 및 sysctl 설정 **********'
+systemctl stop ufw && systemctl disable ufw
+swapoff -a && sed -i '/ swap / s/^/#/' /etc/fstab
+modprobe overlay && modprobe br_netfilter
+cat << EOF >> /etc/sysctl.d/kubernetes.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+sysctl --system
+
+echo '********** 4) Containerd (컨테이너 런타임) 다운로드 **********'
+apt update -y
+apt install -y containerd
+mkdir -p /etc/containerd
+containerd config default | tee /etc/containerd/config.toml
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+systemctl restart containerd && systemctl enable --now containerd
+
+echo '********** 5) Kubernetes 패키지 다운로드 **********'
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | \
+  sudo tee /etc/apt/keyrings/kubernetes-apt-keyring.asc > /dev/null
+
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' | \ 
+  sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+apt update -y
+apt install -y kubelet=1.32.1-1.1 kubeadm=1.32.1-1.1 kubectl=1.32.1-1.1
+apt-mark hold kubelet kubeadm kubectl
+
+SHELL
+
+$provision_master_node = <<-SHELL
+
+echo '********** 1) kubeadm으로 클러스터 생성  **********'
+kubeadm init --pod-network-cidr=20.96.0.0/16 --apiserver-advertise-address 192.168.56.30
+
+mkdir -p $HOME/.kube
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
+
+echo '********** 2) Calico 네트워크 플러그인 설치 **********'
+kubectl apply -f https://docs.projectcalico.org/v3.25/manifests/calico.yaml
+
+echo '********** 3) kubeadm 토큰 생성 및 조인 명령 저장 **********'
+kubeadm token create --print-join-command > /home/vagrant/join.sh
+
+echo '********** 4) Kubernetes 대시보드 및 Metrics Server 설치 **********'
+kubectl apply -f https://raw.githubusercontent.com/k8s-1pro/install/main/ground/k8s-1.27/dashboard-2.7.0/dashboard.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+kubectl taint nodes k8s-master node-role.kubernetes.io/control-plane:NoSchedule-
+
+kubectl patch deployment metrics-server -n kube-system --type='json' \
+  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+
+kubectl patch deployment kubernetes-dashboard -n kubernetes-dashboard \
+  --type='json' \
+  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--enable-skip-login"}]'
+
+sleep 180 && nohup kubectl port-forward -n kubernetes-dashboard svc/kubernetes-dashboard 8443:443 --address 0.0.0.0 > /dev/null 2>&1 &
+
+SHELL
