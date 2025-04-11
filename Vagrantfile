@@ -93,7 +93,7 @@ echo '********** 4) Kubernetes 대시보드 및 Metrics Server 설치 **********
 kubectl apply -f https://raw.githubusercontent.com/k8s-1pro/install/main/ground/k8s-1.27/dashboard-2.7.0/dashboard.yaml
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
-kubectl taint nodes k8s-master node-role.kubernetes.io/control-plane:NoSchedule-
+# kubectl taint nodes k8s-master node-role.kubernetes.io/control-plane:NoSchedule-
 
 kubectl patch deployment metrics-server -n kube-system --type='json' \
   -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
