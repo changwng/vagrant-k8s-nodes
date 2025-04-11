@@ -1,4 +1,8 @@
-NodeCnt = 1
+NodeCnt = 2
+
+hosts_entries = (1..NodeCnt).map do |i|
+  "echo '192.168.56.#{30 + i} k8s-node#{i}' >> /etc/hosts"
+end.join("\n")
 
 Vagrant.configure("2") do |config|
 
@@ -24,6 +28,7 @@ Vagrant.configure("2") do |config|
         vf.memory = 2048
         vf.cpus = 2
       end
+      node.vm.provision :shell, privileged: true, inline: $provision_worker_node
     end
   end
 end
@@ -34,10 +39,8 @@ echo '********** 1) 타임존 셋팅 **********'
 timedatectl set-timezone Asia/Seoul
 
 echo '********** 2) Hosts 수정 **********'
-cat << EOF >> /etc/hosts
-192.168.56.30 k8s-master
-192.168.56.31 k8s-node1
-EOF
+echo '192.168.56.30 k8s-master' >> /etc/hosts
+#{hosts_entries}
 
 echo '********** 3) 방화벽 해제 및 Swap 비활성화 및 필수 커널 모듈 로드 및 sysctl 설정 **********'
 systemctl stop ufw && systemctl disable ufw
@@ -101,4 +104,38 @@ kubectl patch deployment kubernetes-dashboard -n kubernetes-dashboard \
 
 sleep 180 && nohup kubectl port-forward -n kubernetes-dashboard svc/kubernetes-dashboard 8443:443 --address 0.0.0.0 > /dev/null 2>&1 &
 
+SHELL
+
+$provision_worker_node = <<-SHELL
+echo '********** 1) 마스터 노드의 조인 스크립트 가져와 실행 **********'
+
+# sshpass 설치
+apt-get update
+apt-get install -y sshpass
+
+# 순서상 마스터 노드의 join.sh 파일은 이미 생성됐겠지만 혹시 모르니 확인 작업 추가.
+# 약 10초씩 총 12번 간격으로 약 2분 간 확인. 
+max_attempts=12
+attempt=0
+
+while [ $attempt -lt $max_attempts ]; do
+  if sshpass -p "vagrant" ssh -o StrictHostKeyChecking=no vagrant@192.168.56.30 "test -f /home/vagrant/join.sh" 2>/dev/null; then
+    echo 'join 스크립트 찾아서 실행중'
+    sshpass -p "vagrant" scp -o StrictHostKeyChecking=no vagrant@192.168.56.30:/home/vagrant/join.sh /tmp/join.sh
+    chmod +x /tmp/join.sh
+    sudo bash /tmp/join.sh
+    echo "클러스터 join 완료"
+    sudo rm /tmp/join.sh
+    break
+  else
+    echo "마스터 노드가 join.sh 생성할 때까지 대기중 (attempt $((attempt+1))/$max_attempts)..."
+    sleep 10
+    attempt=$((attempt+1))
+  fi
+done
+
+if [ $attempt -eq $max_attempts ]; then
+  echo "타임 아웃, 클러스터 join 실패"
+  exit 1
+fi
 SHELL
