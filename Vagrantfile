@@ -93,13 +93,6 @@ echo '********** 4) Kubernetes 대시보드 및 Metrics Server 설치 **********
 kubectl apply -f https://raw.githubusercontent.com/baobabnamu/vagrant-k8s-nodes/refs/heads/main/modify_dashboard_for_v1_32.yaml
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
-kubectl patch deployment metrics-server -n kube-system --type='json' \
-  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
-
-kubectl patch deployment kubernetes-dashboard -n kubernetes-dashboard \
-  --type='json' \
-  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--enable-skip-login"}]'
-
 sleep 180 && nohup kubectl port-forward -n kubernetes-dashboard svc/kubernetes-dashboard 8443:443 --address 0.0.0.0 > /dev/null 2>&1 &
 
 SHELL
