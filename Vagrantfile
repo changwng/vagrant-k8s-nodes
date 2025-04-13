@@ -1,15 +1,24 @@
+# 워커 노드 개수 설정
 NodeCnt = 2
 
+# /etc/hosts에 워커 노드의 IP/호스트명 입력 명령어를 문자열로 생성
 hosts_entries = (1..NodeCnt).map do |i|
   "echo '192.168.56.#{30 + i} k8s-node#{i}' >> /etc/hosts"
 end.join("\n")
 
+# Vagrant 기본 구성
 Vagrant.configure("2") do |config|
 
+  # 박스 이미지 설정
   config.vm.box = "bento/ubuntu-22.04"
+
+  # 기본 디렉토리 공유 비활성화
   config.vm.synced_folder "./", "/vagrant", disabled: true
+
+  # 모든 노드 공통 스크립트 적용
   config.vm.provision :shell, privileged: true, inline: $install_common_tools
 
+  # 마스터 노드 설정
   config.vm.define "k8s-master" do |master|
     master.vm.hostname = "k8s-master"
     master.vm.network "private_network", ip: "192.168.56.30"
@@ -20,6 +29,7 @@ Vagrant.configure("2") do |config|
     master.vm.provision :shell, privileged: true, inline: $provision_master_node
   end
 
+  # 워커 노드들 설정
   (1..NodeCnt).each do |i|
     config.vm.define "k8s-node#{i}" do |node|
       node.vm.hostname = "k8s-node#{i}"
@@ -32,6 +42,7 @@ Vagrant.configure("2") do |config|
     end
   end
 end
+
 
 $install_common_tools = <<-SHELL
 
@@ -104,8 +115,7 @@ echo '********** 1) 마스터 노드의 조인 스크립트 가져와 실행 ***
 apt-get update
 apt-get install -y sshpass
 
-# 순서상 마스터 노드의 join.sh 파일은 이미 생성됐겠지만 혹시 모르니 확인 작업 추가.
-# 약 10초씩 총 12번 간격으로 약 2분 간 확인. 
+# 최대 2분 동안 join.sh 생성 여부 확인
 max_attempts=12
 attempt=0
 
