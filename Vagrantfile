@@ -13,13 +13,14 @@ Vagrant.configure("2") do |config|
   config.vm.box = "bento/ubuntu-22.04"
 
   # 기본 디렉토리 공유 비활성화
-  config.vm.synced_folder "./", "/vagrant", disabled: true
+  config.vm.synced_folder "./", "/vagrant"
 
-  # 모든 노드 공통 스크립트 적용
-  config.vm.provision :shell, privileged: true, inline: $install_common_tools
+
 
   # 마스터 노드 설정
   config.vm.define "k8s-master" do |master|
+      # 모든 노드 공통 스크립트 적용
+    master.vm.provision :shell, privileged: true, inline: $install_common_tools
     master.vm.hostname = "k8s-master"
     master.vm.network "private_network", ip: "192.168.56.30"
     master.vm.provider :vmware_fusion do |vf|
@@ -32,6 +33,8 @@ Vagrant.configure("2") do |config|
   # 워커 노드들 설정
   (1..NodeCnt).each do |i|
     config.vm.define "k8s-node#{i}" do |node|
+      # 모든 노드 공통 스크립트 적용
+      node.vm.provision :shell, privileged: true, inline: $install_common_tools
       node.vm.hostname = "k8s-node#{i}"
       node.vm.network "private_network", ip: "192.168.56.#{i + 30}"
       node.vm.provider :vmware_fusion do |vf|
@@ -41,8 +44,33 @@ Vagrant.configure("2") do |config|
       node.vm.provision :shell, privileged: true, inline: $provision_worker_node
     end
   end
+    # NFS 서버 설정
+  config.vm.define "k8s-nfs" do |nfs|
+    nfs.vm.hostname = "k8s-nfs"
+    nfs.vm.network "private_network", ip: "192.168.56.40"
+    nfs.vm.provider :vmware_fusion do |vf|
+      vf.memory = 1024
+      vf.cpus = 1
+    end
+    nfs.vm.provision :shell, privileged: true, inline: $provision_nfs_server
+  end
 end
 
+# NFS 서버 설치 스크립트
+$provision_nfs_server = <<-SHELL
+echo '********** 1) NFS 서버 설치 및 디렉토리 준비 **********'
+apt update -y
+apt install -y nfs-kernel-server
+mkdir -p /srv/nfs/k8s
+chown nobody:nogroup /srv/nfs/k8s
+chmod 777 /srv/nfs/k8s
+
+echo '********** 2) /etc/exports 설정 **********'
+echo "/srv/nfs/k8s *(rw,sync,no_subtree_check,no_root_squash)" > /etc/exports
+exportfs -a
+systemctl restart nfs-kernel-server
+systemctl enable nfs-kernel-server
+SHELL
 
 $install_common_tools = <<-SHELL
 
