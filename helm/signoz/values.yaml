@@ -1,0 +1,29 @@
+frontend:
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - signoz.local
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    tls: []
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+otelCollector:
+  persistence:
+    enabled: true
+    existingClaim: nfs-pvc
+queryService:
+  persistence:
+    enabled: true
+    existingClaim: nfs-pvc
+alertmanager:
+  persistence:
+    enabled: true
+    existingClaim: nfs-pvc

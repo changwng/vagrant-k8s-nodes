@@ -1,0 +1,25 @@
+controller:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+# 샘플 Rollout 리소스 적용 예시(별도 yaml로 관리 권장)
+# rolloutSamples:
+#   - name: example-rollout
+#     spec:
+#       replicas: 3
+#       strategy:
+#         canary:
+#           steps:
+#             - setWeight: 20
+#             - pause: {duration: 10s}
+#             - setWeight: 60
+#             - pause: {duration: 10s}

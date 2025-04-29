@@ -1,0 +1,39 @@
+expose:
+  type: ingress
+  tls:
+    enabled: false
+  ingress:
+    hosts:
+      core: harbor.local
+      notary: notary.harbor.local
+    className: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    controller: default
+externalURL: "http://harbor.local"
+
+harborAdminPassword: "vagrant"
+
+persistence:
+  enabled: true
+  persistentVolumeClaim:
+    registry:
+      existingClaim: nfs-pvc
+    chartmuseum:
+      existingClaim: nfs-pvc
+    jobservice:
+      existingClaim: nfs-pvc
+    database:
+      existingClaim: nfs-pvc
+    redis:
+      existingClaim: nfs-pvc
+    trivy:
+      existingClaim: nfs-pvc
+
+notary:
+  enabled: false
+trivy:
+  enabled: false
+
+# 기타 리소스/노드/리밋 등 필요시 추가

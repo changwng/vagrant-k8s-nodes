@@ -1,0 +1,39 @@
+global:
+  istioNamespace: istio-system
+  proxy:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+pilot:
+  autoscaleEnabled: true
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+ingressGateways:
+  enabled: true
+  istio-ingressgateway:
+    type: ClusterIP
+    ports:
+      - port: 80
+        targetPort: 8080
+        name: http2
+      - port: 443
+        targetPort: 8443
+        name: https
+    # 필요시 NFS PVC 마운트 예시
+    # volumeMounts:
+    #   - name: nfs-pvc
+    #     mountPath: /data
+    # volumes:
+    #   - name: nfs-pvc
+    #     persistentVolumeClaim:
+    #       claimName: nfs-pvc

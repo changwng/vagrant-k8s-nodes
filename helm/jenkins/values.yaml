@@ -1,0 +1,21 @@
+controller:
+  adminUser: vagrant
+  adminPassword: vagrant
+  ingress:
+    enabled: true
+    hostName: jenkins.local
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    ingressClassName: nginx
+    tls: []
+  persistence:
+    enabled: true
+    existingClaim: nfs-pvc
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi

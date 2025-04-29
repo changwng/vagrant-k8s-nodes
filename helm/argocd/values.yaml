@@ -1,0 +1,30 @@
+configs:
+  secret:
+    argocdServerAdminPassword: "$2a$12$9Zy5xgVfB6LJ1fY7FfQwLe7g7lVZ8kQkXQ2f6C6v0pZkQhQ6b0l6u"  # bcrypt for 'vagrant'
+server:
+  ingress:
+    enabled: true
+    hostname: argocd.local
+    ingressClassName: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    tls: []
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+repoServer:
+  persistence:
+    enabled: true
+    existingClaim: nfs-pvc
+applicationSet:
+  enabled: true
+redis:
+  enabled: true
+  persistence:
+    enabled: true
+    existingClaim: nfs-pvc
