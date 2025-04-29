@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-statefulset
+  labels:
+    env: production
+    tier: database
+    app: mysql
+    name: mysql-statefulset
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      env: production
+      tier: database
+      app: mysql
+      name: mysql-pod
+  template:
+    metadata:
+      labels:
+        env: production
+        tier: database
+        app: mysql
+        name: mysql-pod
+    spec:
+      securityContext:
+        fsGroup: 1000  # <- NFS 볼륨에서 그룹 기반 권한으로 쓰기 허용
+      initContainers:
+        - name: init-mysql
+          image: bitnami/mysql:5.7
+          command:
+            - sh
+            - "-c"
+            - |
+              set -ex
+              ordinal=$(echo "$HOSTNAME" | awk -F'-' '{print $NF}')
+              echo [mysqld] > /mnt/conf.d/server-id.cnf
+              echo server-id=$((100 + ordinal)) >> /mnt/conf.d/server-id.cnf
+              if [ "$ordinal" -eq 0 ]; then
+                cp /mnt/mysql-configmap/master.cnf /mnt/conf.d/
+              else
+                cp /mnt/mysql-configmap/slave.cnf /mnt/conf.d/
+              fi
+          volumeMounts:
+            - name: mysql-conf
+              mountPath: /mnt/conf.d
+            - name: mysql-configmap
+              mountPath: /mnt/mysql-configmap
+        - name: clone-mysql
+          image: bitnami/percona-xtrabackup:2.4
+          command:
+            - sh
+            - "-c"
+            - |
+              set -ex
+              if [ -d /var/lib/mysql/mysql ]; then exit 0; fi
+              ordinal=$(hostname | awk -F'-' '{print $NF}')
+              if [ "$ordinal" -eq 0 ]; then exit 0; fi
+              ncat --recv-only mysql-$(($ordinal-1)).mysql 3307 | xbstream -x -C /var/lib/mysql
+              xtrabackup --prepare --target-dir=/var/lib/mysql
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+              subPath: mysql
+            - name: mysql-conf
+              mountPath: /etc/mysql/conf.d
+      containers:
+        - name: mysql
+          image: bitnami/mysql:5.7
+          env:
+          - name: MYSQL_USER
+            valueFrom:
+              configMapKeyRef:
+                key: mysql-user
+                name: mysql-configmap
+          - name: MYSQL_DATABASE
+            valueFrom:
+              configMapKeyRef:
+                key: mysql-database
+                name: mysql-configmap
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysql-secret
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-root-password
+                name: mysql-secret
+          - name: MYSQL_ALLOW_EMPTY_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                key: mysql-allow-empty-password
+                name: mysql-configmap
+          - name: MYSQL_ROOT_HOST
+            valueFrom:
+              configMapKeyRef:
+                key: mysql-root-host
+                name: mysql-configmap
+          ports:
+            - name: mysql
+              containerPort: 3306
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+              subPath: mysql
+            - name: mysql-conf
+              mountPath: /etc/mysql/conf.d
+          startupProbe:
+            exec:
+              command: ["mysqladmin", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 2
+            timeoutSeconds: 1
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - |
+                  mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"
+            initialDelaySeconds: 30
+            periodSeconds: 2
+            timeoutSeconds: 1
+        - name: xtrabackup
+          image: bitnami/percona-xtrabackup:2.4
+          ports:
+            - name: xtrabackup
+              containerPort: 3307
+          command:
+            - sh
+            - "-c"
+            - |
+              set -ex
+              cd /var/lib/mysql
+
+              if [ -f xtrabackup_slave_info ] && [ "x$(cat xtrabackup_slave_info)" != "x" ]; then
+                cat xtrabackup_slave_info | sed -E 's/;$//g' > change_master_to.sql.in
+                rm -f xtrabackup_slave_info xtrabackup_binlog_info
+              elif [ -f xtrabackup_binlog_info ]; then
+                read log_file log_pos < xtrabackup_binlog_info
+                rm -f xtrabackup_binlog_info xtrabackup_slave_info
+                echo "CHANGE MASTER TO MASTER_LOG_FILE='${log_file}',MASTER_LOG_POS=${log_pos}, \
+                      MASTER_HOST='mysql-0.mysql', \
+                      MASTER_USER='root', \
+                      MASTER_PASSWORD='', \
+                      MASTER_CONNECT_RETRY=10; \
+                      START SLAVE;" > change_master_to.sql.in
+              fi
+
+              echo "Waiting for mysqld to be ready (accepting connections)"
+              until mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"; do sleep 1; done
+
+              echo "Initializing replication from clone position"
+              mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" < change_master_to.sql.in
+              mv change_master_to.sql.in change_master_to.sql.orig
+
+              exec ncat --listen --keep-open --send-only --max-conns=1 3307 -c \
+                "xtrabackup --backup --slave-info --stream=xbstream --host=127.0.0.1 --user=root"
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+              subPath: mysql
+            - name: mysql-conf
+              mountPath: /etc/mysql/conf.d
+      volumes:
+        - name: mysql-conf
+          emptyDir: {}
+        - name: mysql-configmap
+          configMap:
+            name: mysql-configmap
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: mysql-pvc

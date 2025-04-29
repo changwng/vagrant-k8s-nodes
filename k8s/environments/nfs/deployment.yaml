@@ -1,0 +1,53 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nfs-provisioner-deployment
+  labels:
+    env: production
+    tier: storage
+    app: nfs
+    name: nfs-provisioner-deployment
+spec:
+  selector:
+    matchLabels:
+      env: production
+      tier: storage
+      app: nfs
+      name: nfs-provisioner-pod
+  replicas: 1
+  strategy:
+    type: Recreate # Recreate 전략 유의 (파드가 잠시 중단될 수 있음)
+  template:
+    metadata:
+      labels:
+        env: production
+        tier: storage
+        app: nfs
+        name: nfs-provisioner-pod
+    spec:
+      serviceAccountName: nfs-provisioner-sa # 서비스 계정이 올바르게 존재하는지 확인 필요
+      containers:
+        - name: nfs-provisioner
+          # --- 이미지 변경 ---
+          image: registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+          # -------------------
+          env:
+            # PROVISIONER_NAME은 보통 스토리지 클래스와 맞춰주는 것이 좋습니다. (예: k8s-sigs.io/nfs-subdir-external-provisioner)
+            # 하지만 기존 설정(nfs-provisioner)을 유지해도 동작은 할 수 있습니다. StorageClass의 provisioner 필드와 일치해야 합니다.
+            - name: PROVISIONER_NAME
+              value: nfs-provisioner # StorageClass의 provisioner 필드와 일치하는지 확인!
+            - name: NFS_SERVER
+              value:  192.168.56.40
+            - name: NFS_PATH
+              value: /srv/nfs # NFS 서버에 실제로 존재하는 경로여야 합니다.
+          # nfs-subdir-external-provisioner는 이 volumeMount가 필요 없을 수 있습니다.
+          # 프로비저너 자체는 NFS 서버에 직접 연결하여 디렉토리를 생성합니다.
+          # volumeMounts:
+          #   - name: nfs-volume
+          #     mountPath: /persistentvolumes
+      # volumes 역시 필요 없을 가능성이 높습니다.
+      # volumes:
+      #  - name: nfs-volume
+      #    nfs:
+      #      server:  192.168.56.40
+      #      path: /srv/nfs

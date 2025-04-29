@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+  labels:
+    env: production
+    tier: cicd
+    app: jenkins
+spec:
+  ingressClassName: nginx # <- NGINX Ingress Controller를 사용
+  # nginx.ingress.kubernetes.io/rewrite-target: /
+  # nginx.ingress.kubernetes.io/use-regex: "true"
+  # nginx.ingress.kubernetes.io/configuration-snippet: |
+  #   rewrite ^(/jenkins)(.*) /$2 break;
+  rules:
+    - host: jenkins.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jenkins
+                port:
+                  number: 8080

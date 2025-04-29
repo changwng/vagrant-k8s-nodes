@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rabbitmq-ingress
+  labels:
+    env: production
+    tier: backend
+    app: rabbitmq
+spec:
+  ingressClassName: nginx # <- NGINX Ingress Controller를 사용
+  # nginx.ingress.kubernetes.io/rewrite-target: /
+  rules:
+    - host: rabbitmq.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbitmq
+                port:
+                  number: 15672

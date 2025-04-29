@@ -1,3 +1,8 @@
+# 1. Helm 설치
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+
+
 # vagrant-k8s-nodes
 it's just vagrant test repo for studying k8s  
 if you want to see more about it  
@@ -62,3 +67,22 @@ metrics-server가 재시작되었습니다. 잠시 후에 정상적으로 작동
 vagrant ssh k8s-master -c "kubectl top nodes"
 ```
 kubectl top nodes
+
+
+
+sudo mkdir -p /srv/nfs/k8s/mysql
+sudo chown -R 65534:65534 /srv/nfs/k8s/mysql
+sudo chmod -R 775 /srv/nfs/k8s/mysql
+
+# jenkins
+sudo mkdir -p /srv/nfs/k8s/jenkins
+sudo chown -R 1001:1001 /srv/nfs/k8s/jenkins
+sudo chmod -R 775 /srv/nfs/k8s/jenkins
+
+
+
+--- base64 secret 추가 방법 
+```
+echo -n "my-secret-pw" | base64
+```
+

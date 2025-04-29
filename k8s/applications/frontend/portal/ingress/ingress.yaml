@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-portal-ingress
+  labels:
+    env: production
+    tier: frontend
+    app: portal
+    name: frontend-portal-ingress
+spec:
+  rules:
+  - host: portal.localhost
+    http:
+      paths:
+      - path: /
+        backend:
+          service:
+            name: frontend-portal
+            port:
+              number: 3000
+        pathType: Prefix
+  ingressClassName: nginx

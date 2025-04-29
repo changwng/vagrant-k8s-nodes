@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-admin-ingress
+  labels:
+    env: production
+    tier: frontend
+    app: admin
+    name: frontend-admin-ingress
+spec:
+  rules:
+  - host: admin.localhost
+    http:
+      paths:
+      - path: /
+        backend:
+          service:
+            name: frontend-admin
+            port:
+              number: 3000
+        pathType: Prefix
+  ingressClassName: nginx
