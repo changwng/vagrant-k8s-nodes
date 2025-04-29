@@ -8,5 +8,5 @@ metadata:
     app: configmap
     name: common-configmap
 data:
-  APP_HOME: "/srv/nfs"
+  APP_HOME: "/srv/nfs/k8s"
   TZ: "Asia/Seoul"

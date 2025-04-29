@@ -3,12 +3,25 @@ kind: Kustomization
 resources:
 - configmaps/backend-configmap.yaml
 - configmaps/common-configmap.yaml
+- nfs/sa.yaml
+- nfs/sc.yaml
+- nfs/deployment.yaml
+- databases/mysql/secret.yaml
+- databases/mysql/configmap.yaml
+- databases/mysql/service.yaml
+- databases/mysql/pvc.yaml
+- databases/mysql/statefulset.yaml
 - rabbitmq/service.yaml
 - rabbitmq/ingress/ingress.yaml
 - rabbitmq/deployment.yaml
 - zipkin/service.yaml
 - zipkin/ingress/ingress.yaml
 - zipkin/deployment.yaml
+- jenkins/sa.yaml
+- jenkins/service.yaml
+- jenkins/ingress/ingress.yaml
+- jenkins/pvc.yaml
+- jenkins/statefulset.yaml
 - logging/elk/kibana/configmap.yaml
 - logging/elk/kibana/service.yaml
 - logging/elk/kibana/ingress/ingress.yaml

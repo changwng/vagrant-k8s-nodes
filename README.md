@@ -80,6 +80,10 @@ sudo chown -R 1001:1001 /srv/nfs/k8s/jenkins
 sudo chmod -R 775 /srv/nfs/k8s/jenkins
 
 
+sudo chown -R 1000:1000 /srv/nfs/k8s/jenkins
+sudo chmod -R 775 /srv/nfs/k8s/jenkins
+
+
 
 --- base64 secret 추가 방법 
 ```
@@ -107,3 +111,35 @@ mysql -h <mysql-service-ip> -P <port> -u root -p < your.sql
 kubectl port-forward svc/mysql 3306:3306 -n default
 mysql -h 127.0.0.1 -P 3306 -u root -p
 
+
+-- jenkins 설치
+ kubectl apply -f jenkins/sa.yaml
+ kubectl apply -f jenkins/service.yaml
+ kubectl apply -f jenkins/ingress/ingress.yaml
+ kubectl apply -f jenkins/pv.yaml
+ kubectl apply -f jenkins/pvc.yaml
+ kubectl apply -f jenkins/statefulset.yaml
+ kubectl apply -f jenkins/namespace.yaml
+ kubectl apply -f jenkins/role.yaml
+ kubectl apply -f jenkins/rolebinding.yaml
+
+
+
+kubectl exec -it jenkins-statefulset-0 -n default -- bash
+
+cat /var/jenkins_home/secrets/initialAdminPassword
+ab32b71c28d14b31995cb191c075802c
+
+http://192.168.56.30:30016/
+admin/cw8904
+
+
+sudo pkill -9 containerd-shim
+sudo pkill -9 containerd
+sudo systemctl restart containerd
+sudo systemctl restart kubelet
+
+kubectl get nodes
+sudo tail -n 50 /var/log/syslog
+sudo tail -n 50 /var/log/kubelet.log
+sudo journalctl -u containerd | tail -n 50

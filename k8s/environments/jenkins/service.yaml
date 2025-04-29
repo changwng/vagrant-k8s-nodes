@@ -12,7 +12,7 @@ spec:
   ports:
     - port: 8080
       targetPort: 8080
-      nodePort: 30006
+      nodePort: 30016
   selector:
     env: production
     tier: cicd
