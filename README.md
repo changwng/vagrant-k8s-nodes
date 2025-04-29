@@ -86,3 +86,24 @@ sudo chmod -R 775 /srv/nfs/k8s/jenkins
 echo -n "my-secret-pw" | base64
 ```
 
+
+
+
+mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES;"
+4. 실전 예시
+sh
+CopyInsert
+# 1. 파드 이름 확인
+kubectl get pods -n default
+
+# 2. 파드 내부 접속
+kubectl exec -it mysql-statefulset-0 -n default -- bash
+
+# 3. SQL 파일 실행
+mysql -u root -p"$MYSQL_ROOT_PASSWORD" < /docker-entrypoint-initdb.d/initdb.sql
+mysql -h <mysql-service-ip> -P <port> -u root -p < your.sql
+
+
+kubectl port-forward svc/mysql 3306:3306 -n default
+mysql -h 127.0.0.1 -P 3306 -u root -p
+

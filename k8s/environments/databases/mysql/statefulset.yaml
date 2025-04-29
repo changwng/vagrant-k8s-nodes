@@ -108,6 +108,9 @@ spec:
               subPath: mysql
             - name: mysql-conf
               mountPath: /etc/mysql/conf.d
+            - name: mysql-initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
           startupProbe:
             exec:
               command: ["mysqladmin", "ping"]
@@ -174,3 +177,7 @@ spec:
         - name: mysql-data
           persistentVolumeClaim:
             claimName: mysql-pvc
+        - name: mysql-initdb
+          hostPath:
+            path: /vagrant/k8s/environments/databases/mysql/docker-entrypoint-initdb.d
+            type: Directory

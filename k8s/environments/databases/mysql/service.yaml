@@ -13,8 +13,10 @@ spec:
     tier: database
     app: mysql
     name: mysql-pod
+  type: NodePort
   ports:
     - name: http-3306
       protocol: TCP
       port: 3306
       targetPort: 3306
+      nodePort: 30006
