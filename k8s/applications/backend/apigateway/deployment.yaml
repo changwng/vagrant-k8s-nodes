@@ -27,11 +27,13 @@ spec:
     spec:
       containers:
         - name: apigateway
-          image: egovframe/egovframe-msa-edu-backend-apigateway:latest # TODO
+          image: changwng/egovframe-msa-edu-backend-apigateway:latest # TODO
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
+            - name: TOKEN_SECRET
+              value: "your-temporary-secret-value"
             - name: EUREKA_INSTANCE_HOSTNAME
               valueFrom:
                 configMapKeyRef:

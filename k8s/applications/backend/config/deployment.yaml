@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: config
-          image: egovframe/egovframe-msa-edu-backend-config:latest # TODO
+          image: changwng/egovframe-msa-edu-backend-config:latest # TODO
           imagePullPolicy: Always
           ports:
             - containerPort: 8888

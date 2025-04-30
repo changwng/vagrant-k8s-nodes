@@ -1,13 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-- portal/service.yaml
-- admin/service.yaml
-- portal/ingress/ingress.yaml
-- admin/ingress/ingress.yaml
-- portal/deployment.yaml
+resources: 
+- admin/service.yaml 
+- admin/ingress/ingress.yaml 
 - admin/deployment.yaml
-- portal/autoscaler.yaml
 - admin/autoscaler.yaml
 
 

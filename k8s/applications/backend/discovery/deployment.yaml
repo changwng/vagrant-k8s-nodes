@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: discovery
-          image: egovframe/egovframe-msa-edu-backend-discovery:latest # TODO
+          image: changwng/egovframe-msa-edu-backend-discovery:latest # TODO
           imagePullPolicy: Always
           ports:
             - containerPort: 8761

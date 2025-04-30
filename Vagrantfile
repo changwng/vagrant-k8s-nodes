@@ -23,6 +23,7 @@ Vagrant.configure("2") do |config|
     master.vm.provision :shell, privileged: true, inline: $install_common_tools
     master.vm.hostname = "k8s-master"
     master.vm.network "private_network", ip: "192.168.56.30"
+    master.vm.network "forwarded_port", guest: 8443, host: 8443, auto_correct: true
     master.vm.provider :vmware_fusion do |vf|
       vf.memory = 4096
       vf.cpus = 4
@@ -38,7 +39,7 @@ Vagrant.configure("2") do |config|
       node.vm.hostname = "k8s-node#{i}"
       node.vm.network "private_network", ip: "192.168.56.#{i + 30}"
       node.vm.provider :vmware_fusion do |vf|
-        vf.memory = 2048
+        vf.memory = 6144
         vf.cpus = 2
       end
       node.vm.provision :shell, privileged: true, inline: $provision_worker_node
